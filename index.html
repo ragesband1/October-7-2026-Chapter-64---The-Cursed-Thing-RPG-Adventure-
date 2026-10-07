@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chapter 64 - The Cursed Thing (RPG Adventure)</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0f19;
+            color: #f0f4f8;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: radial-gradient(circle at center, #1a233a 0%, #080c14 100%);
+        }
+
+        /* Canvas Viewport */
+        #viewport {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #111827;
+            cursor: crosshair;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Top Bar HUD */
+        #hud-top {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            right: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hud-group {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .hud-card {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px: solid rgba(59, 130, 246, 0.4);
+            border-radius: 8px;
+            padding: 8px 14px;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .bar-container {
+            width: 150px;
+            height: 12px;
+            background: #334155;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 4px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .bar-fill {
+            height: 100%;
+            width: 100%;
+            transition: width 0.2s ease;
+        }
+        #hp-fill { background: linear-gradient(90deg, #ef4444, #f87171); }
+        #xp-fill { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+
+        /* Minimap */
+        #minimap-container {
+            width: 130px;
+            height: 130px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 2px solid #3b82f6;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+        }
+        #minimap-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Action Buttons & HUD Bottom */
+        #hud-bottom {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .control-panel {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(59, 130, 246, 0.4);
+            border-radius: 12px;
+            padding: 12px 18px;
+            backdrop-filter: blur(6px);
+            pointer-events: auto;
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        .btn {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        .btn:hover {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(59,130,246,0.4);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn-secondary {
+            background: linear-gradient(135deg, #475569, #334155);
+        }
+        .btn-secondary:hover {
+            background: linear-gradient(135deg, #64748b, #475569);
+        }
+
+        /* Quest Tracker */
+        #quest-tracker {
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 10px;
+            padding: 12px 16px;
+            max-width: 300px;
+            pointer-events: auto;
+            backdrop-filter: blur(6px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #quest-tracker h3 {
+            color: #fbbf24;
+            font-size: 14px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        #quest-tracker p {
+            font-size: 13px;
+            color: #cbd5e1;
+            line-height: 1.4;
+        }
+
+        /* Dialog Box */
+        #dialog-box {
+            position: absolute;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 20px;
+            display: none;
+            z-index: 20;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.7);
+            animation: fadeIn 0.3s ease;
+        }
+        #dialog-speaker {
+            color: #60a5fa;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        #dialog-text {
+            font-size: 15px;
+            color: #f1f5f9;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            min-height: 45px;
+        }
+
+        /* Modal Overlays */
+        .modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(8px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: #0f172a;
+            border: 2px solid #3b82f6;
+            border-radius: 16px;
+            width: 700px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            overflow: hidden;
+            animation: scaleIn 0.3s ease;
+        }
+        .modal-header {
+            padding: 20px 24px;
+            background: #1e293b;
+            border-bottom: 1px solid #334155;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h2 {
+            color: #60a5fa;
+            font-size: 22px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 24px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .close-btn:hover { color: #fff; }
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* Class Selection & Title Screen */
+        #title-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #090d16 0%, #111827 50%, #1e1b4b 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            text-align: center;
+            padding: 20px;
+        }
+        #title-screen h1 {
+            font-size: 48px;
+            color: #f8fafc;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+            letter-spacing: 2px;
+        }
+        #title-screen h2 {
+            font-size: 20px;
+            color: #60a5fa;
+            margin-bottom: 30px;
+            font-weight: 400;
+        }
+        .class-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 900px;
+            margin-bottom: 35px;
+        }
+        .class-card {
+            background: rgba(30, 41, 59, 0.7);
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: left;
+        }
+        .class-card:hover, .class-card.selected {
+            border-color: #3b82f6;
+            background: rgba(30, 41, 59, 0.95);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+        .class-card h3 {
+            color: #f1f5f9;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+        .class-card p {
+            font-size: 13px;
+            color: #94a3b8;
+            line-height: 1.4;
+        }
+
+        /* Inventory & Equipment Grids */
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .section-box {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 16px;
+        }
+        .section-box h3 {
+            font-size: 16px;
+            color: #fbbf24;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 6px;
+        }
+        .item-slot, .skill-node {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .item-slot span, .skill-node span {
+            font-size: 14px;
+        }
+
+        /* Notifications & Log */
+        #notification {
+            position: absolute;
+            top: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid #3b82f6;
+            color: #60a5fa;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 150;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        #notification.show { opacity: 1; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, 20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Title & Class Selection Screen -->
+        <div id="title-screen">
+            <h1>CHAPTER 64: THE CURSED THING</h1>
+            <h2>Based on the epic story by Stingy Death Toys & "The Rages Band"</h2>
+            <p style="color: #94a3b8; margin-bottom: 25px; font-size: 14px;">Select your Hero Class to embark on the journey through Dehada:</p>
+            <div class="class-grid">
+                <div class="class-card selected" onclick="selectClass('piper')" id="card-piper">
+                    <h3>🎵 Magical Piper Tomark</h3>
+                    <p>Wields the mystical pipe to blow soul-awakening melodies, breaking cursed objects and defeating Hermit Delufio.</p>
+                </div>
+                <div class="class-card" onclick="selectClass('warrior')" id="card-warrior">
+                    <h3>⚔️ Dehada Vanguard</h3>
+                    <p>A courageous town defender equipped with trust, honesty, and heavy armor to strike down wicked sorcery.</p>
+                </div>
+                <div class="class-card" onclick="selectClass('rogue')" id="card-rogue">
+                    <h3>🗡️ Swift Scout</h3>
+                    <p>Expert in navigating forgotten lost items and uncovering secrets before Hermit Delufio strikes.</p>
+                </div>
+            </div>
+            <button class="btn" style="padding: 14px 35px; font-size: 16px;" onclick="startGame()">Start Adventure</button>
+        </div>
+
+        <!-- Top HUD -->
+        <div id="hud-top">
+            <div class="hud-group">
+                <div class="hud-card">
+                    <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold;">
+                        <span id="player-name-hud">Hero</span>
+                        <span>Lvl <span id="player-lvl">1</span></span>
+                    </div>
+                    <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;" id="player-class-hud">Magical Piper</div>
+                    <div class="bar-container"><div id="hp-fill" class="bar-fill"></div></div>
+                    <div style="font-size: 10px; color: #cbd5e1; margin-top: 2px; text-align: right;"><span id="hp-text">100/100</span> HP</div>
+                </div>
+                <div class="hud-card" style="width: 180px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: bold;">
+                        <span>Experience</span>
+                        <span id="xp-text">0 / 100</span>
+                    </div>
+                    <div class="bar-container"><div id="xp-fill" class="bar-fill"></div></div>
+                </div>
+            </div>
+
+            <div class="hud-group">
+                <div id="minimap-container">
+                    <canvas id="minimap-canvas" width="130" height="130"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Viewport (3D/2.5D Canvas World) -->
+        <div id="viewport">
+            <canvas id="game-canvas"></canvas>
+        </div>
+
+        <!-- Dialog Box -->
+        <div id="dialog-box">
+            <div id="dialog-speaker">Speaker</div>
+            <div id="dialog-text">Dialogue text goes here...</div>
+            <button class="btn" onclick="nextDialog()">Continue / Close</button>
+        </div>
+
+        <!-- Notification Banner -->
+        <div id="notification">Notification Message</div>
+
+        <!-- Bottom HUD & Navigation Menu Buttons -->
+        <div id="hud-bottom">
+            <div id="quest-tracker">
+                <h3 id="quest-title">Main Quest: The Lost Things <span id="quest-progress">0/3</span></h3>
+                <p id="quest-desc">Explore the town of Dehada, find forgotten items, and confront Hermit Delufio!</p>
+            </div>
+            <div class="control-panel">
+                <button class="btn btn-secondary" onclick="openModal('inventory-modal')">Inventory (I)</button>
+                <button class="btn btn-secondary" onclick="openModal('skills-modal')">Skill Tree (K)</button>
+                <button class="btn btn-secondary" onclick="openModal('map-modal')">World Map (M)</button>
+                <button class="btn" onclick="triggerAction()">Interact / Action (E)</button>
+            </div>
+        </div>
+
+        <!-- Modals -->
+        <!-- Inventory Modal -->
+        <div id="inventory-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Inventory & Equipment</h2>
+                    <button class="close-btn" onclick="closeModal('inventory-modal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="grid-2col">
+                        <div class="section-box">
+                            <h3>Equipped Items</h3>
+                            <div class="item-slot"><span>Weapon: <strong id="eq-weapon">Magical Pipe</strong></span></div>
+                            <div class="item-slot"><span>Armor: <strong id="eq-armor">Humble Rags</strong></span></div>
+                            <div class="item-slot"><span>Accessory: <strong id="eq-acc">Charm of Truth</strong></span></div>
+                        </div>
+                        <div class="section-box">
+                            <h3>Bag (Stolen / Lost Items)</h3>
+                            <div id="inventory-list">
+                                <div class="item-slot"><span>Forgotten Wallet</span><span style="color:#fbbf24;">Quest Item</span></div>
+                                <div class="item-slot"><span>Abandoned Bag</span><span style="color:#fbbf24;">Quest Item</span></div>
+                                <div class="item-slot"><span>Cigol's Gold Coins</span><span style="color:#10b981;">50 Gold</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Skills Modal -->
+        <div id="skills-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Progression & Skill Tree</h2>
+                    <button class="close-btn" onclick="closeModal('skills-modal')">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div style="margin-bottom: 15px; font-size: 14px; color: #94a3b8;">
+                        Available Skill Points: <strong id="skill-points" style="color: #60a5fa;">2</strong>
+                    </div>
+                    <div class="skill-node">
+                        <div>
+                            <strong>1. Melodic Whistle</strong>
+                            <div style="font-size: 12px; color: #94a3b8;">Unlocks magical pipe tunes to break curses.</div>
+                        </div>
+                        <button class="btn" onclick="upgradeSkill('whistle')">Unlocked</button>
+                    </div>
+                    <div class="skill-node">
+                        <div>
+                            <strong>2. Humble Conscience</strong>
+                            <div style="font-size: 12px; color: #94a3b8;">Increases defense against Hermit Delufio's deceptive tricks.</div>
+                        </div>
+                        <button class="btn" onclick="upgradeSkill('conscience')">Upgrade (1 SP)</button>
+                    </div>
+                    <div class="skill-node">
+                        <div>
+                            <strong>3. Truth Seeker</strong>
+                            <div style="font-size: 12px; color: #94a3b8;">Detects hidden lost items across Dehada instantly.</div>
+                        </div>
+                        <button class="btn" onclick="upgradeSkill('truth')">Upgrade (1 SP)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- World Map Modal -->
+        <div id="map-modal" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>World of Dehada - Map</h2>
+                    <button class="close-btn" onclick="closeModal('map-modal')">&times;</button>
+                </div>
+                <div class="modal-body" style="text-align: center;">
+                    <div style="background: #111827; border: 2px solid #3b82f6; border-radius: 12px; height: 300px; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                        <div style="position: absolute; top: 30px; left: 50px; background: rgba(59,130,246,0.3); border: 1px solid #3b82f6; padding: 10px 15px; border-radius: 8px;">🏰 Castle of Dehada (Hermit Delufio's Lair)</div>
+                        <div style="position: absolute; bottom: 40px; right: 60px; background: rgba(16,185,129,0.3); border: 1px solid #10b981; padding: 10px 15px; border-radius: 8px;">🏘️ Town of Dehada (Cigol & Citizens)</div>
+                        <div id="map-player-marker" style="position: absolute; bottom: 60px; right: 100px; width: 12px; height: 12px; background: #f59e0b; border-radius: 50%; box-shadow: 0 0 10px #f59e0b;"></div>
+                    </div>
+                    <p style="margin-top: 15px; font-size: 13px; color: #94a3b8;">Use WASD / Arrow keys to navigate through the town and confront Hermit Delufio.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game State & Configuration
+        let gameStarted = false;
+        let selectedHeroClass = 'piper';
+        const player = {
+            name: "Tomark",
+            class: "Magical Piper",
+            level: 1,
+            xp: 0,
+            maxXp: 100,
+            hp: 100,
+            maxHp: 100,
+            x: 400,
+            y: 300,
+            speed: 4,
+            facing: 'down'
+        };
+
+        const keys = {};
+        let currentQuestIndex = 0;
+        const quests = [
+            {
+                title: "Chapter 1-2: The Forgotten Items & Cigol's Fate",
+                desc: "Explore the Town of Dehada. Find the abandoned bag and wallet before Hermit Delufio curses them!",
+                progress: 0,
+                target: 2
+            },
+            {
+                title: "Chapter 3: Confronting Hermit Delufio",
+                desc: "Meet the townspeople and confront Hermit Delufio who is tricking citizens with false rewards.",
+                progress: 0,
+                target: 1
+            },
+            {
+                title: "Chapter 4: The Magical Piper's Melody",
+                desc: "Play your magical pipe to awaken the lost items, break the curse, and defeat Hermit Delufio once and for all!",
+                progress: 0,
+                target: 1
+            }
+        ];
+
+        // NPCs and Entities in World
+        const npcs = [
+            { id: 'cigol', name: 'Cigol', x: 250, y: 200, color: '#f59e0b', dialog: "Hi! I am Cigol. I accepted a mysterious reward from a stranger named Bebang (Hermit Delufio), and now I feel sleepy..." },
+            { id: 'citizen', name: 'Townsperson', x: 550, y: 180, color: '#3b82f6', dialog: "Somebody is stealing our wallets and bags left outside without concern! Please Magical Piper Tomark, save us!" },
+            { id: 'delufio', name: 'Hermit Delufio (Boss)', x: 650, y: 450, color: '#ef4444', dialog: "Hahaha! I am Hermit Delufio! Touch my stolen cursed items and you shall fall into eternal sleep!" }
+        ];
+
+        const lostItems = [
+            { id: 'item1', name: 'Forgotten Wallet', x: 200, y: 400, collected: false },
+            { id: 'item2', name: 'Abandoned Bag', x: 600, y: 250, collected: false }
+        ];
+
+        // Canvas Setup
+        const canvas = document.getElementById('game-canvas');
+        const ctx = canvas.getContext('2d');
+        const miniCanvas = document.getElementById('minimap-canvas');
+        const miniCtx = miniCanvas.getContext('2d');
+
+        function resizeCanvas() {
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function selectClass(cls) {
+            document.querySelectorAll('.class-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('card-' + cls).classList.add('selected');
+            selectedHeroClass = cls;
+            if (cls === 'piper') {
+                player.class = "Magical Piper";
+                player.name = "Tomark";
+            } else if (cls === 'warrior') {
+                player.class = "Dehada Vanguard";
+                player.name = "Valen";
+            } else {
+                player.class = "Swift Scout";
+                player.name = "Rin";
+            }
+        }
+
+        function startGame() {
+            document.getElementById('title-screen').style.display = 'none';
+            gameStarted = true;
+            document.getElementById('player-name-hud').innerText = player.name;
+            document.getElementById('player-class-hud').innerText = player.class;
+            updateHUD();
+            showNotification("Adventure Begins in Dehada! Use WASD to move.");
+        }
+
+        // Input Handling
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true;
+            if (e.key === 'i' || e.key === 'I') openModal('inventory-modal');
+            if (e.key === 'k' || e.key === 'K') openModal('skills-modal');
+            if (e.key === 'm' || e.key === 'M') openModal('map-modal');
+            if (e.key === 'e' || e.key === 'E') triggerAction();
+        });
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function showNotification(msg) {
+            const notif = document.getElementById('notification');
+            notif.innerText = msg;
+            notif.classList.add('show');
+            setTimeout(() => notif.classList.remove('show'), 3000);
+        }
+
+        let activeDialogNpc = null;
+        function showDialog(speaker, text) {
+            document.getElementById('dialog-speaker').innerText = speaker;
+            document.getElementById('dialog-text').innerText = text;
+            document.getElementById('dialog-box').style.display = 'block';
+        }
+        function nextDialog() {
+            document.getElementById('dialog-box').style.display = 'none';
+            activeDialogNpc = null;
+        }
+
+        function triggerAction() {
+            if (!gameStarted) return;
+            // Check proximity to NPCs
+            for (let npc of npcs) {
+                let dist = Math.hypot(player.x - npc.x, player.y - npc.y);
+                if (dist < 60) {
+                    showDialog(npc.name, npc.dialog);
+                    if (npc.id === 'delufio' && currentQuestIndex === 1) {
+                        currentQuestIndex = 2;
+                        updateQuestTracker();
+                    }
+                    return;
+                }
+            }
+
+            // Check proximity to lost items
+            for (let item of lostItems) {
+                if (!item.collected) {
+                    let dist = Math.hypot(player.x - item.x, player.y - item.y);
+                    if (dist < 50) {
+                        item.collected = true;
+                        showNotification(`Collected ${item.name}! Curse averted.`);
+                        player.xp += 50;
+                        if (player.xp >= player.maxXp) {
+                            player.level++;
+                            player.xp = 0;
+                            player.maxXp += 50;
+                            showNotification(`Level Up! You are now Level ${player.level}!`);
+                        }
+                        updateHUD();
+
+                        if (currentQuestIndex === 0) {
+                            quests[0].progress++;
+                            if (quests[0].progress >= quests[0].target) {
+                                currentQuestIndex = 1;
+                                showNotification("Quest Complete: Proceed to confront Hermit Delufio!");
+                            }
+                            updateQuestTracker();
+                        }
+                        return;
+                    }
+                }
+            }
+            showNotification("No interactable objects nearby. Explore Dehada!");
+        }
+
+        function updateHUD() {
+            document.getElementById('player-lvl').innerText = player.level;
+            document.getElementById('hp-text').innerText = `${player.hp}/${player.maxHp}`;
+            document.getElementById('hp-fill').style.width = `${(player.hp / player.maxHp) * 100}%`;
+            document.getElementById('xp-text').innerText = `${player.xp} / ${player.maxXp}`;
+            document.getElementById('xp-fill').style.width = `${(player.xp / player.maxXp) * 100}%`;
+        }
+
+        function updateQuestTracker() {
+            const q = quests[currentQuestIndex];
+            document.getElementById('quest-title').innerHTML = `${q.title} <span id="quest-progress">${q.progress !== undefined ? q.progress + '/' + q.target : ''}</span>`;
+            document.getElementById('quest-desc').innerText = q.desc;
+        }
+
+        function upgradeSkill(skill) {
+            showNotification(`Skill upgraded successfully!`);
+        }
+
+        // Game Loop & Rendering
+        function update() {
+            if (!gameStarted) return;
+
+            let dx = 0, dy = 0;
+            if (keys['w'] || keys['arrowup']) dy -= 1;
+            if (keys['s'] || keys['arrowdown']) dy += 1;
+            if (keys['a'] || keys['arrowleft']) dx -= 1;
+            if (keys['d'] || keys['arrowright']) dx += 1;
+
+            if (dx !== 0 || dy !== 0) {
+                let len = Math.hypot(dx, dy);
+                player.x += (dx / len) * player.speed;
+                player.y += (dy / len) * player.speed;
+
+                // Boundaries
+                player.x = Math.max(30, Math.min(canvas.width - 30, player.x));
+                player.y = Math.max(30, Math.min(canvas.height - 30, player.y));
+            }
+        }
+
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw Environment / Ground Grid (Dehada Town & Castle)
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Roads / Pathways
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 40;
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.stroke();
+
+            // Draw Lost Items
+            lostItems.forEach(item => {
+                if (!item.collected) {
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.beginPath();
+                    ctx.arc(item.x, item.y, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = '#d97706';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '11px sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(item.name, item.x, item.y - 18);
+                }
+            });
+
+            // Draw NPCs
+            npcs.forEach(npc => {
+                ctx.fillStyle = npc.color;
+                ctx.beginPath();
+                ctx.arc(npc.x, npc.y, 18, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#f1f5f9';
+                ctx.font = '12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(npc.name, npc.x, npc.y - 26);
+            });
+
+            // Draw Player
+            ctx.fillStyle = selectedHeroClass === 'piper' ? '#3b82f6' : (selectedHeroClass === 'warrior' ? '#10b981' : '#8b5cf6');
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(player.name, player.x, player.y - 30);
+
+            // Render Minimap
+            renderMinimap();
+        }
+
+        function renderMinimap() {
+            miniCtx.clearRect(0, 0, miniCanvas.width, miniCanvas.height);
+            miniCtx.fillStyle = '#0f172a';
+            miniCtx.fillRect(0, 0, miniCanvas.width, miniCanvas.height);
+
+            // Scale factor between main canvas and minimap
+            let scaleX = miniCanvas.width / canvas.width;
+            let scaleY = miniCanvas.height / canvas.height;
+
+            // Draw items on minimap
+            lostItems.forEach(item => {
+                if (!item.collected) {
+                    miniCtx.fillStyle = '#fbbf24';
+                    miniCtx.fillRect(item.x * scaleX - 3, item.y * scaleY - 3, 6, 6);
+                }
+            });
+
+            // Draw NPCs on minimap
+            npcs.forEach(npc => {
+                miniCtx.fillStyle = npc.color;
+                miniCtx.fillRect(npc.x * scaleX - 3, npc.y * scaleY - 3, 6, 6);
+            });
+
+            // Draw Player on minimap
+            miniCtx.fillStyle = '#3b82f6';
+            miniCtx.beginPath();
+            miniCtx.arc(player.x * scaleX, player.y * scaleY, 4, 0, Math.PI * 2);
+            miniCtx.fill();
+        }
+
+        function gameLoop() {
+            update();
+            render();
+            requestAnimationFrame(gameLoop);
+        }
+
+        requestAnimationFrame(gameLoop);
+    </script>
+</body>
+</html>
